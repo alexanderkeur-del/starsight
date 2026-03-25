@@ -963,15 +963,9 @@ function fmtUTC(d) {
     String(d.getUTCSeconds()).padStart(2, '0');
 }
 
-// ── PWA (disabled during development) ──
-// if ('serviceWorker' in navigator) {
-//   navigator.serviceWorker.register('sw.js').catch(() => {});
-// }
-// Unregister any existing SW so refreshes pull fresh files
+// ── PWA ──
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(regs) {
-    regs.forEach(function(r) { r.unregister(); });
-  });
+  navigator.serviceWorker.register('sw.js').catch(function() {});
 }
 </script>
 </body>

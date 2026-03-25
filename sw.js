@@ -1,4 +1,4 @@
-const CACHE='starsight-v2';
+const CACHE='starsight-v3';
 const ASSETS=['./','./index.html','./engine.js','./manifest.json'];
 
 self.addEventListener('install',e=>{
