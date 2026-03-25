@@ -357,8 +357,8 @@ async function requestPermissions() {
         { timeout: 5000 }
       );
     } else {
-      app.assumedPos = { lat: 52, lon: 5 };
-      app.skyBodies = computeSky(52, 5, new Date());
+      app.assumedPos = { lat: 52.37, lon: 4.90 };
+      app.skyBodies = computeSky(52.37, 4.90, new Date());
     }
 
     // Start AR overlay render loop
