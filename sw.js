@@ -1,5 +1,5 @@
-const CACHE='starsight-v3';
-const ASSETS=['./','./index.html','./engine.js','./manifest.json'];
+const CACHE='starsight-v4';
+const ASSETS=['./','./index.html','./engine.js','./manifest.json','./icon.svg'];
 
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
