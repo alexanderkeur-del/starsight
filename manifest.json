@@ -1,0 +1,11 @@
+{
+  "name": "Starsight",
+  "short_name": "Starsight",
+  "description": "AR celestial navigation — identify stars and fix your position from the stars alone",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#06091a",
+  "theme_color": "#c8a84b",
+  "icons": []
+}

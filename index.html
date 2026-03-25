@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#c8a84b">
+<link rel="manifest" href="manifest.json">
+<title>Starsight</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Share+Tech+Mono&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#06091a;--s1:#0b1028;--s2:#0f1735;--s3:#132040;
+  --b1:#1a3258;--b2:#244978;--b3:#2e5d96;
+  --acc:#c8a84b;--acc2:#8a6e2a;--acc3:rgba(200,168,75,0.12);
+  --blu:#5b9fd6;--grn:#52c98a;--red:#e05252;--pur:#a78bfa;
+  --tx1:#ddd5bc;--tx2:#7a8fa8;--tx3:#3d5470;
+  --mono:'Share Tech Mono','Courier New',monospace;
+  --disp:'Cinzel',Georgia,serif;
+  --body:'Crimson Pro',Georgia,serif;
+}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--bg);color:var(--tx1);font-family:var(--body);font-size:16px;
+  display:flex;flex-direction:column;
+}
+
+/* ─── HEADER ─── */
+header{
+  flex-shrink:0;border-bottom:1px solid var(--b1);padding:10px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--s1);z-index:100;
+}
+header h1{font-family:var(--disp);font-size:20px;font-weight:700;letter-spacing:4px;color:var(--acc)}
+.hdr-right{display:flex;align-items:center;gap:12px}
+.utc-live{font-family:var(--mono);font-size:16px;color:var(--acc);letter-spacing:2px}
+
+/* ─── MAIN AREA ─── */
+.main{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column}
+
+/* ─── CAMERA VIEW ─── */
+.camera-wrap{flex:1;position:relative;background:#000;overflow:hidden}
+#cameraVideo{width:100%;height:100%;object-fit:cover;display:block;filter:none;z-index:0}
+#arCanvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:5}
+.reticle{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:60px;height:60px;border:2px solid var(--acc);border-radius:50%;
+  pointer-events:none;opacity:0.7;
+}
+.reticle::before,.reticle::after{
+  content:'';position:absolute;background:var(--acc);
+}
+.reticle::before{width:1px;height:20px;left:50%;top:-12px;transform:translateX(-50%)}
+.reticle::after{width:20px;height:1px;top:50%;left:-12px;transform:translateY(-50%)}
+
+/* ─── ORIENTATION HUD ─── */
+.orient-hud{
+  position:absolute;top:8px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:14px;color:var(--acc);
+  background:rgba(6,9,26,0.7);padding:4px 12px;border:1px solid var(--b1);
+  letter-spacing:2px;white-space:nowrap;z-index:10;
+}
+
+/* ─── IDENTIFIED STAR LABEL ─── */
+.star-label{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-120%);
+  font-family:var(--mono);font-size:18px;color:var(--grn);
+  text-shadow:0 0 8px rgba(82,201,138,0.5);
+  pointer-events:none;z-index:10;opacity:0;transition:opacity 0.3s;
+}
+.star-label.visible{opacity:1}
+
+/* ─── BOTTOM CONTROLS (floating over camera) ─── */
+.bottom-controls{
+  position:absolute;bottom:0;left:0;right:0;z-index:20;
+  pointer-events:none;padding:12px 16px 20px;
+  background:linear-gradient(transparent, rgba(6,9,26,0.6) 40%, rgba(6,9,26,0.85));
+}
+.bottom-controls>*{pointer-events:auto}
+.ctrl-row{display:flex;align-items:center;justify-content:center;gap:12px}
+.sight-badge{
+  font-family:var(--mono);font-size:12px;color:var(--tx2);letter-spacing:1px;
+  background:rgba(6,9,26,0.7);padding:2px 8px;border:1px solid var(--b1);
+}
+
+/* ─── CAPTURE BUTTON ─── */
+.capture-btn{
+  width:56px;height:56px;border-radius:50%;border:3px solid var(--acc);
+  background:transparent;cursor:pointer;position:relative;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s;
+}
+.capture-btn:active{background:rgba(200,168,75,0.3);transform:scale(0.95)}
+.capture-btn .inner{
+  width:42px;height:42px;border-radius:50%;background:var(--acc);opacity:0.8;
+}
+.capture-btn.flash .inner{animation:flash 0.3s ease-out}
+@keyframes flash{0%{background:#fff}100%{background:var(--acc)}}
+
+/* ─── BUTTONS ─── */
+.btn{padding:7px 14px;font-family:var(--disp);font-size:12px;letter-spacing:2px;cursor:pointer;border:1px solid;transition:all 0.15s;text-transform:uppercase;background:transparent}
+.btn-acc{border-color:var(--acc);color:var(--acc)}
+.btn-acc:hover{background:var(--acc3)}
+.btn-ghost{border-color:var(--b2);color:var(--tx2)}
+.btn-ghost:hover{border-color:var(--acc2);color:var(--tx1)}
+
+/* ─── MINI BUTTONS ─── */
+.btn-mini{
+  font-family:var(--mono);font-size:10px;letter-spacing:1px;
+  padding:4px 8px;border:1px solid var(--b1);color:var(--tx2);
+  background:rgba(6,9,26,0.7);cursor:pointer;text-transform:uppercase;
+}
+.btn-mini:active{border-color:var(--acc);color:var(--acc)}
+.btn-mini.primary{border-color:var(--acc);color:var(--acc)}
+.btn-mini.danger{border-color:#7a2020;color:var(--red)}
+
+/* ─── STATUS TOAST ─── */
+.status-toast{
+  position:absolute;bottom:100px;left:16px;right:16px;z-index:25;
+  font-family:var(--mono);font-size:11px;padding:5px 10px;
+  border:1px solid;opacity:0;transition:opacity 0.3s;pointer-events:none;
+}
+.status-toast.visible{opacity:1}
+.st-ok{border-color:var(--grn);color:var(--grn);background:rgba(6,9,26,0.85)}
+.st-warn{border-color:var(--acc);color:var(--acc);background:rgba(6,9,26,0.85)}
+.st-err{border-color:var(--red);color:var(--red);background:rgba(6,9,26,0.85)}
+.st-info{border-color:var(--blu);color:var(--blu);background:rgba(6,9,26,0.85)}
+
+/* ─── POSITION EDIT ─── */
+.pos-edit{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(6,9,26,0.95);border:1px solid var(--b1);padding:16px;
+  z-index:60;display:none;text-align:center;
+}
+.pos-edit.visible{display:block}
+.pos-edit label{font-family:var(--mono);font-size:12px;color:var(--tx2);display:block;margin:6px 0 2px}
+.pos-edit input{
+  font-family:var(--mono);font-size:16px;background:var(--s1);border:1px solid var(--b1);
+  color:var(--tx1);padding:4px 8px;width:120px;text-align:center;
+}
+
+/* ─── FIX RESULT OVERLAY ─── */
+.fix-overlay{
+  position:absolute;bottom:0;left:0;right:0;
+  background:rgba(6,9,26,0.92);border-top:1px solid var(--acc);
+  padding:16px;z-index:50;display:none;
+}
+.fix-overlay.visible{display:block}
+.fix-title{font-family:var(--disp);font-size:16px;color:var(--acc);letter-spacing:3px;margin-bottom:8px}
+.fix-coords{font-family:var(--mono);font-size:20px;color:var(--grn);letter-spacing:2px}
+.fix-detail{font-family:var(--mono);font-size:12px;color:var(--tx2);margin-top:4px}
+
+/* ─── PERMISSION SCREEN ─── */
+.perm-screen{
+  position:absolute;inset:0;background:var(--bg);z-index:200;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:30px;text-align:center;
+}
+.perm-screen h2{font-family:var(--disp);font-size:22px;color:var(--acc);letter-spacing:4px;margin-bottom:16px}
+.perm-screen p{font-family:var(--body);font-size:16px;color:var(--tx2);max-width:360px;margin-bottom:20px;line-height:1.5}
+.perm-screen .btn{font-size:14px;padding:12px 28px}
+
+/* ─── MOBILE ─── */
+@media(max-width:600px){
+  header h1{font-size:16px;letter-spacing:3px}
+  .utc-live{font-size:14px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>STARSIGHT</h1>
+  <div class="hdr-right">
+    <span class="utc-live" id="utcClock">--:--:--</span>
+  </div>
+</header>
+
+<div class="main">
+  <!-- Permission request screen -->
+  <div class="perm-screen" id="permScreen">
+    <h2>CAMERA &amp; SENSORS</h2>
+    <p>Starsight needs access to your camera and device orientation to identify stars and capture sights.</p>
+    <button class="btn btn-acc" onclick="requestPermissions()">GRANT ACCESS</button>
+    <button class="btn btn-ghost" style="margin-top:10px" onclick="startSimMode()">DEMO MODE (NO CAMERA)</button>
+    <p style="font-size:13px;color:var(--tx3);margin-top:16px">Camera feed stays on your device. No data is transmitted.</p>
+    <p id="permError" style="font-size:13px;color:var(--red);margin-top:8px;display:none"></p>
+  </div>
+
+  <!-- Camera + AR overlay -->
+  <div class="camera-wrap" id="cameraWrap" style="display:none">
+    <video id="cameraVideo" autoplay playsinline muted style="display:none"></video>
+    <canvas id="videoCanvas" style="width:100%;height:100%;object-fit:cover;display:block;z-index:0"></canvas>
+    <canvas id="arCanvas" onclick="cycleCandidate()"></canvas>
+    <div class="reticle" id="reticle"></div>
+    <div class="orient-hud" id="orientHud">ALT --.- | AZ ---.-</div>
+    <div class="star-label" id="starLabel">--</div>
+
+    <!-- Fix result overlay -->
+    <div class="fix-overlay" id="fixOverlay">
+      <div class="fix-title">POSITION FIX</div>
+      <div class="fix-coords" id="fixCoords">--</div>
+      <div class="fix-detail" id="fixDetail"></div>
+      <div class="fix-detail" id="fixGps" style="color:var(--blu)"></div>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button class="btn-mini" onclick="dismissFix()">DISMISS</button>
+        <button class="btn-mini primary" onclick="continueSighting()">MORE SIGHTS</button>
+      </div>
+    </div>
+
+    <!-- Floating controls over camera -->
+    <div class="bottom-controls" id="bottomPanel" style="display:none">
+    <div class="ctrl-row" style="margin-bottom:8px">
+      <span class="sight-badge" id="sightCount">0</span>
+      <button class="capture-btn" id="captureBtn" onclick="captureSight()">
+        <div class="inner"></div>
+      </button>
+      <button class="btn-mini primary" onclick="computeFix()" id="fixBtn" disabled>FIX</button>
+    </div>
+    <div class="ctrl-row">
+      <button class="btn-mini" onclick="adjustAzTrim(-1)">AZ-</button>
+      <button class="btn-mini" onclick="toggleSightLog()">LOG</button>
+      <button class="btn-mini" onclick="showPosEdit()">POS</button>
+      <button class="btn-mini" onclick="recalibrate()">CAL</button>
+      <button class="btn-mini danger" onclick="clearSights()">CLR</button>
+      <button class="btn-mini" onclick="adjustAzTrim(1)">AZ+</button>
+    </div>
+  </div>
+
+  <!-- Status toast (auto-hides) -->
+  <div class="status-toast" id="statusToast"></div>
+
+  <!-- Sight log popup -->
+  <div class="pos-edit" id="sightLogPopup">
+    <div style="font-family:var(--disp);font-size:13px;color:var(--acc);letter-spacing:2px;margin-bottom:6px">SIGHT LOG</div>
+    <div id="sightLog" style="font-family:var(--mono);font-size:11px;color:var(--tx2);max-height:200px;overflow-y:auto;text-align:left"></div>
+    <button class="btn-mini" style="margin-top:8px" onclick="document.getElementById('sightLogPopup').classList.remove('visible')">CLOSE</button>
+  </div>
+
+  <!-- Position edit popup -->
+  <div class="pos-edit" id="posEditPopup">
+    <div style="font-family:var(--disp);font-size:13px;color:var(--acc);letter-spacing:2px;margin-bottom:4px">ASSUMED POSITION</div>
+    <label>LAT</label>
+    <input type="number" id="posLat" step="0.1" placeholder="52.4">
+    <label>LON</label>
+    <input type="number" id="posLon" step="0.1" placeholder="4.9">
+    <div style="margin-top:10px;display:flex;gap:6px;justify-content:center">
+      <button class="btn-mini primary" onclick="applyPosEdit()">APPLY</button>
+      <button class="btn-mini" onclick="document.getElementById('posEditPopup').classList.remove('visible')">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<script src="engine.js"></script>
+<script>
+// ══════════════════════════════════════════════════════
+//  STARSIGHT — AR Celestial Navigation
+// ══════════════════════════════════════════════════════
+
+// App state
+const app = {
+  sights: [],           // captured sights: {alt, az, time, star, ho}
+  orientation: null,     // current device orientation {alpha, beta, gamma}
+  cameraStream: null,
+  skyBodies: null,       // computed sky for current assumed position
+  assumedPos: null,      // rough lat/lon for star overlay (null = unknown)
+  solveMode: 'auto',     // 'auto' = auto-ID from orientation, 'plate' = plate-solve from camera
+  triangleIndex: null,   // precomputed triangle index for plate solving
+  identified: null,      // currently identified star
+  fixResult: null,
+};
+
+// ── CLOCK ──
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getUTCHours()).padStart(2, '0');
+  const m = String(now.getUTCMinutes()).padStart(2, '0');
+  const s = String(now.getUTCSeconds()).padStart(2, '0');
+  document.getElementById('utcClock').textContent = h + ':' + m + ':' + s;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── PERMISSIONS ──
+async function requestPermissions() {
+  try {
+    // Request device orientation FIRST — iOS requires this in the direct user gesture handler
+    // before any other async calls break the gesture chain
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const perm = await DeviceOrientationEvent.requestPermission();
+      if (perm !== 'granted') throw new Error('Orientation permission denied');
+    }
+
+    // Now request camera (this await is fine, orientation already granted)
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    app.cameraStream = stream;
+    const video = document.getElementById('cameraVideo');
+    video.srcObject = stream;
+
+    // Try to boost camera exposure for star visibility
+    const track = stream.getVideoTracks()[0];
+    try {
+      const caps = track.getCapabilities();
+      const constraints = {};
+      // Max out exposure compensation if available
+      if (caps.exposureCompensation) {
+        constraints.exposureCompensation = caps.exposureCompensation.max;
+      }
+      // Try manual exposure mode for longer exposure times
+      if (caps.exposureMode && caps.exposureMode.includes('manual')) {
+        constraints.exposureMode = 'manual';
+        if (caps.exposureTime) constraints.exposureTime = caps.exposureTime.max;
+        if (caps.iso) constraints.iso = caps.iso.max;
+      }
+      if (Object.keys(constraints).length > 0) {
+        track.applyConstraints({ advanced: [constraints] });
+      }
+    } catch(ex) { /* not all browsers support these */ }
+
+    // Start video frame processing loop
+    video.addEventListener('loadeddata', function() { processVideoFrame(); });
+
+    // Start orientation listening
+    initOrientation();
+
+    // Show camera UI
+    document.getElementById('permScreen').style.display = 'none';
+    document.getElementById('cameraWrap').style.display = 'flex';
+    document.getElementById('bottomPanel').style.display = 'block';
+
+    // Initialize AR canvas sizing
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Build triangle index for plate solving
+    app.triangleIndex = buildTriangleIndex(STARS, 2.0);
+
+    // Try GPS for initial assumed position (for star overlay)
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          app.gpsPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+          app.assumedPos = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+          app.skyBodies = computeSky(app.assumedPos.lat, app.assumedPos.lon, new Date());
+          app.lastSkyRefresh = Date.now();
+          setStatus('GPS: ' + pos.coords.latitude.toFixed(1) + '\u00B0N ' + pos.coords.longitude.toFixed(1) + '\u00B0E — overlay active', 'ok');
+        },
+        function() {
+          // No GPS — use a default and let user know
+          app.assumedPos = { lat: 52.37, lon: 4.90 };
+          app.skyBodies = computeSky(52.37, 4.90, new Date());
+          setStatus('No GPS. Default: Amsterdam. Tap POS to edit.', 'warn');
+        },
+        { timeout: 5000 }
+      );
+    } else {
+      app.assumedPos = { lat: 52, lon: 5 };
+      app.skyBodies = computeSky(52, 5, new Date());
+    }
+
+    // Start AR overlay render loop
+    requestAnimationFrame(arLoop);
+
+    setStatus('Camera and sensors active. Point at a star and tap capture.', 'info');
+
+  } catch (err) {
+    const errEl = document.getElementById('permError');
+    errEl.style.display = 'block';
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+      errEl.textContent = 'Camera requires HTTPS. Use Demo Mode, or access via localhost, or set up HTTPS.';
+    } else {
+      errEl.textContent = 'Permission error: ' + err.message;
+    }
+  }
+}
+
+// ── DEMO / SIM MODE (works without camera/sensors) ──
+function startSimMode() {
+  app.simMode = true;
+  // Use a default position (mid-Atlantic) and current time
+  app.assumedPos = { lat: 52.37, lon: 4.90 };
+  app.skyBodies = computeSky(app.assumedPos.lat, app.assumedPos.lon, new Date());
+  app.triangleIndex = buildTriangleIndex(STARS, 2.0);
+
+  // Hide permission screen, show UI
+  document.getElementById('permScreen').style.display = 'none';
+  document.getElementById('cameraWrap').style.display = 'flex';
+  document.getElementById('bottomPanel').style.display = 'block';
+
+  // Set camera background to dark sky gradient instead of video
+  document.getElementById('cameraWrap').style.background =
+    'radial-gradient(ellipse at 50% 30%, #0a1628 0%, #060910 100%)';
+  document.getElementById('cameraVideo').style.display = 'none';
+
+  // Draw simulated sky on canvas
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  drawSimSky();
+
+  // Simulate orientation with touch/mouse drag
+  initSimDrag();
+
+  setStatus('Demo mode — drag to look around, tap capture to take sights.', 'info');
+}
+
+function drawSimSky() {
+  if (!app.skyBodies) return;
+  const canvas = document.getElementById('arCanvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const simAz = app.simAz || 180;
+  const simAlt = app.simAlt || 45;
+  const fov = 60;
+
+  for (const b of app.skyBodies) {
+    if (b.alt < 0 || b.type === 'aux') continue;
+
+    // Project body relative to current view direction
+    let dAz = b.az - simAz;
+    if (dAz > 180) dAz -= 360;
+    if (dAz < -180) dAz += 360;
+    const dAlt = b.alt - simAlt;
+
+    // Check if in FOV
+    if (Math.abs(dAz) > fov / 2 + 5 || Math.abs(dAlt) > fov / 2 + 5) continue;
+
+    const px = w / 2 + (dAz / fov) * w;
+    const py = h / 2 - (dAlt / fov) * h;
+
+    // Star size based on magnitude
+    const size = Math.max(1, 4 - b.mag * 0.8);
+    const alpha = Math.min(1, Math.max(0.3, 1 - b.mag / 5));
+
+    ctx.beginPath();
+    ctx.arc(px, py, size, 0, Math.PI * 2);
+    if (b.type === 'planet') ctx.fillStyle = 'rgba(200,168,75,' + alpha + ')';
+    else if (b.type === 'moon') ctx.fillStyle = 'rgba(200,200,180,' + alpha + ')';
+    else ctx.fillStyle = 'rgba(220,220,255,' + alpha + ')';
+    ctx.fill();
+
+    // Label bright objects
+    if (b.mag < 1.5 || b.type === 'planet' || b.type === 'moon') {
+      ctx.font = '11px "Share Tech Mono", monospace';
+      ctx.fillStyle = 'rgba(122,143,168,0.8)';
+      ctx.fillText(b.name, px + size + 4, py + 3);
+    }
+  }
+
+  // Update HUD
+  document.getElementById('orientHud').textContent =
+    'ALT ' + simAlt.toFixed(1) + '\u00B0 | AZ ' + simAz.toFixed(1) + '\u00B0';
+
+  // Identify nearest star to crosshair
+  const nearest = identifyNearest(simAz, simAlt, app.skyBodies, 8);
+  const label = document.getElementById('starLabel');
+  if (nearest) {
+    label.textContent = nearest.name + ' (' + nearest.alt.toFixed(1) + '\u00B0)';
+    label.classList.add('visible');
+    app.identified = nearest;
+  } else {
+    label.classList.remove('visible');
+    app.identified = null;
+  }
+}
+
+function initSimDrag() {
+  app.simAz = 180;
+  app.simAlt = 45;
+  const wrap = document.getElementById('cameraWrap');
+  let dragging = false, startX, startY, startAz, startAlt;
+
+  wrap.addEventListener('pointerdown', function(e) {
+    if (e.target.closest('.fix-overlay')) return;
+    dragging = true;
+    startX = e.clientX; startY = e.clientY;
+    startAz = app.simAz; startAlt = app.simAlt;
+    wrap.setPointerCapture(e.pointerId);
+  });
+  wrap.addEventListener('pointermove', function(e) {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    app.simAz = mod360(startAz - dx * 0.3);
+    app.simAlt = Math.max(-10, Math.min(90, startAlt + dy * 0.3));
+    drawSimSky();
+  });
+  wrap.addEventListener('pointerup', function() { dragging = false; });
+  wrap.addEventListener('pointercancel', function() { dragging = false; });
+}
+
+// ── AR OVERLAY RENDER LOOP (camera mode) ──
+// ── VIDEO FRAME PROCESSING (gamma boost for stars) ──
+function processVideoFrame() {
+  if (app.simMode) return;
+  const video = document.getElementById('cameraVideo');
+  const vc = document.getElementById('videoCanvas');
+  if (!video.videoWidth) { requestAnimationFrame(processVideoFrame); return; }
+  if (vc.width !== video.videoWidth || vc.height !== video.videoHeight) {
+    vc.width = video.videoWidth;
+    vc.height = video.videoHeight;
+  }
+  const vctx = vc.getContext('2d', { willReadFrequently: true });
+  vctx.drawImage(video, 0, 0);
+  const imgData = vctx.getImageData(0, 0, vc.width, vc.height);
+  const d = imgData.data;
+  if (!app.lut) {
+    app.lut = new Uint8Array(256);
+    for (var i = 0; i < 256; i++) {
+      app.lut[i] = Math.min(255, Math.pow(i / 255, 0.3) * 255 | 0);
+    }
+  }
+  const lut = app.lut;
+  for (var j = 0; j < d.length; j += 4) {
+    var lum = d[j] * 0.299 + d[j+1] * 0.587 + d[j+2] * 0.114;
+    d[j] = d[j+1] = d[j+2] = lut[lum | 0];
+  }
+  vctx.putImageData(imgData, 0, 0);
+  requestAnimationFrame(processVideoFrame);
+}
+
+function arLoop() {
+  if (app.simMode) return; // sim mode uses drawSimSky instead
+  if (!app.skyBodies || !app.orientation) {
+    requestAnimationFrame(arLoop);
+    return;
+  }
+
+  const canvas = document.getElementById('arCanvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const pointing = getPointing();
+  const fov = 60; // approximate phone camera FOV in degrees
+
+  // Refresh sky computation every 30 seconds
+  if (!app.lastSkyRefresh || Date.now() - app.lastSkyRefresh > 30000) {
+    if (app.assumedPos) {
+      app.skyBodies = computeSky(app.assumedPos.lat, app.assumedPos.lon, new Date());
+      app.lastSkyRefresh = Date.now();
+    }
+  }
+
+  for (const b of app.skyBodies) {
+    if (b.alt < -5 || b.type === 'aux') continue;
+
+    // Angular offset from where phone is pointing
+    let dAz = b.az - pointing.az;
+    if (dAz > 180) dAz -= 360;
+    if (dAz < -180) dAz += 360;
+    const dAlt = b.alt - pointing.alt;
+
+    // Check if in FOV
+    if (Math.abs(dAz) > fov / 2 + 5 || Math.abs(dAlt) > fov / 2 + 5) continue;
+
+    // Project to screen coordinates
+    const px = w / 2 + (dAz / fov) * w;
+    const py = h / 2 - (dAlt / fov) * h;
+
+    // Determine color
+    let color;
+    if (b.type === 'planet') color = [200,168,75];
+    else if (b.type === 'moon') color = [200,200,180];
+    else if (b.type === 'sun') color = [255,200,50];
+    else color = [100,200,255];
+
+    // Ring outline — lets real star show through center
+    const size = Math.max(6, 12 - b.mag * 1.5);
+    ctx.beginPath();
+    ctx.arc(px, py, size, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgb(' + color.join(',') + ')';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = 'rgba(0,0,0,0.9)';
+    ctx.shadowBlur = 5;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Label with dark background pill
+    if (b.mag < 2.5 || b.type === 'planet' || b.type === 'moon' || b.type === 'sun') {
+      ctx.font = 'bold 11px "Share Tech Mono", monospace';
+      var lx = px + size + 4, ly = py + 3;
+      ctx.shadowColor = 'rgba(0,0,0,0.9)';
+      ctx.shadowBlur = 4;
+      ctx.fillStyle = 'rgb(' + color.join(',') + ')';
+      ctx.fillText(b.name, lx, ly);
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  // Debug: show count of bodies in view
+  var inView = 0;
+  for (var bi = 0; bi < app.skyBodies.length; bi++) {
+    var bb = app.skyBodies[bi];
+    if (bb.alt < -5 || bb.type === 'aux') continue;
+    var ddAz = bb.az - pointing.az;
+    if (ddAz > 180) ddAz -= 360;
+    if (ddAz < -180) ddAz += 360;
+    if (Math.abs(ddAz) <= fov/2+5 && Math.abs(bb.alt - pointing.alt) <= fov/2+5) inView++;
+  }
+  ctx.font = '11px "Share Tech Mono", monospace';
+  ctx.fillStyle = 'rgba(200,168,75,0.6)';
+  ctx.fillText(app.skyBodies.length + ' bodies | ' + inView + ' in FOV | ' + w.toFixed(0) + 'x' + h.toFixed(0), 8, h - 8);
+
+  requestAnimationFrame(arLoop);
+}
+
+// ── DEVICE ORIENTATION ──
+// Use absolute orientation for compass heading
+// iOS: webkitCompassHeading gives magnetic north directly
+// Android: need 'deviceorientationabsolute' event, or fall back to alpha
+function initOrientation() {
+  // Try absolute orientation first (Android)
+  if ('ondeviceorientationabsolute' in window) {
+    window.addEventListener('deviceorientationabsolute', onOrientation, true);
+  } else {
+    window.addEventListener('deviceorientation', onOrientation, true);
+  }
+}
+
+function onOrientation(e) {
+  if (e.alpha === null && e.beta === null) return;
+
+  const beta = e.beta || 0;
+
+  // Altitude: simple beta mapping
+  // iOS: beta=90 upright (horizon), >90 tilted back (sky), <90 tilted forward (ground)
+  const alt = Math.max(-90, Math.min(90, beta - 90));
+
+  // Azimuth: use compass when near-upright, track via alpha when tilted
+  const alpha = e.alpha || 0;
+  let az;
+
+  if (e.webkitCompassHeading !== undefined) {
+    const reliable = beta > 45 && beta < 135;
+    if (reliable) {
+      // Compass usable: blend compass with alpha tracking for stability
+      var compassAz = e.webkitCompassHeading;
+      if (app.lockedAz !== undefined) {
+        // Also compute alpha-tracked az
+        let dAlpha = alpha - app.lockedAlpha;
+        if (dAlpha > 180) dAlpha -= 360;
+        if (dAlpha < -180) dAlpha += 360;
+        var alphaAz = mod360(app.lockedAz - dAlpha);
+        // Blend: more compass weight when upright, more alpha when tilted
+        var uprightness = 1 - Math.abs(beta - 90) / 45; // 1=upright, 0=edge of range
+        var compassWeight = uprightness * 0.5;
+        var diff = compassAz - alphaAz;
+        if (diff > 180) diff -= 360;
+        if (diff < -180) diff += 360;
+        az = mod360(alphaAz + diff * compassWeight);
+      } else {
+        az = compassAz;
+      }
+      // Update lock reference
+      app.lockedAz = az;
+      app.lockedAlpha = alpha;
+    } else if (app.lockedAz !== undefined) {
+      // Steep tilt: pure alpha tracking
+      let dAlpha = alpha - app.lockedAlpha;
+      if (dAlpha > 180) dAlpha -= 360;
+      if (dAlpha < -180) dAlpha += 360;
+      az = mod360(app.lockedAz - dAlpha);
+    } else {
+      az = e.webkitCompassHeading;
+    }
+  } else if (e.absolute) {
+    az = mod360(360 - alpha);
+  } else {
+    az = alpha;
+  }
+
+  // Heavier smoothing to reduce jitter
+  if (app.lastRawAz !== undefined) {
+    let diff = az - app.lastRawAz;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    az = mod360(app.lastRawAz + diff * 0.2);
+  }
+  app.lastRawAz = az;
+
+  app.orientation = { beta: beta };
+  app.currentAlt = alt;
+  app.currentAz = mod360(az + (app.azTrim || 0));
+
+  // Update HUD
+  document.getElementById('orientHud').textContent =
+    alt.toFixed(1) + '\u00B0 ALT  ' + az.toFixed(1) + '\u00B0 AZ';
+
+  // Build nearby candidates list (for tap-to-cycle)
+  if (app.assumedPos && app.skyBodies) {
+    const candidates = [];
+    for (var ci = 0; ci < app.skyBodies.length; ci++) {
+      var cb = app.skyBodies[ci];
+      if (cb.alt < -5 || cb.type === 'aux') continue;
+      var cdAz = Math.abs(cb.az - az);
+      if (cdAz > 180) cdAz = 360 - cdAz;
+      var cdAlt = Math.abs(cb.alt - alt);
+      var csep = Math.sqrt(cdAz * cdAz * cos(alt) * cos(alt) + cdAlt * cdAlt);
+      if (csep < 20) candidates.push({ name: cb.name, alt: cb.alt, az: cb.az, mag: cb.mag, type: cb.type, ra: cb.ra, dec: cb.dec, sep: csep });
+    }
+    candidates.sort(function(a, b) { return a.sep - b.sep; });
+    app.candidates = candidates;
+
+    // If user manually selected a body, stick with it if still in range
+    var sel = null;
+    if (app.selectedName) {
+      sel = candidates.find(function(c) { return c.name === app.selectedName; });
+      if (!sel) app.selectedName = null; // moved out of range, clear
+    }
+    if (!sel && candidates.length > 0) {
+      sel = candidates[0]; // default to nearest
+    }
+
+    const label = document.getElementById('starLabel');
+    if (sel) {
+      var conf = sel.sep < 5 ? '' : sel.sep < 10 ? ' ?' : ' ??';
+      var more = candidates.length > 1 ? '  \u25C0\u25B6' : '';
+      label.textContent = sel.name + conf + more;
+      label.classList.add('visible');
+      label.style.color = sel.sep < 5 ? 'var(--grn)' : sel.sep < 10 ? 'var(--acc)' : 'var(--tx2)';
+      app.identified = sel;
+    } else {
+      label.classList.remove('visible');
+      app.identified = null;
+    }
+  }
+}
+
+// Get current pointing direction (uses computed alt/az, not raw sensor values)
+function getPointing() {
+  if (app.simMode) {
+    return { alt: app.simAlt || 45, az: app.simAz || 180 };
+  }
+  return { alt: app.currentAlt || 0, az: app.currentAz || 0 };
+}
+
+// ── AR CANVAS ──
+function resizeCanvas() {
+  const canvas = document.getElementById('arCanvas');
+  const wrap = document.getElementById('cameraWrap');
+  // Match canvas resolution to display size (no DPR scaling for simplicity)
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+}
+
+// ── CAPTURE SIGHT ──
+function captureSight() {
+  const btn = document.getElementById('captureBtn');
+  btn.classList.add('flash');
+  setTimeout(() => btn.classList.remove('flash'), 300);
+
+  const now = new Date();
+  const pointing = getPointing();
+
+  // In sim mode, use the star's computed altitude (perfect observation)
+  // In real mode, use the gyro altitude (noisy)
+  const ho = (app.simMode && app.identified) ? app.identified.alt : pointing.alt;
+
+  const sight = {
+    id: Date.now(),
+    alt: pointing.alt,
+    az: pointing.az,
+    time: now,
+    utc: now,
+    star: app.identified ? findStarByName(app.identified.name) : null,
+    starName: app.identified ? app.identified.name : 'Unknown',
+    ho: ho,
+  };
+
+  app.sights.push(sight);
+  updateSightLog();
+
+  if (app.sights.length >= 2) {
+    document.getElementById('fixBtn').disabled = false;
+  }
+
+  setStatus('Sight #' + app.sights.length + ': ' + sight.starName +
+    ' | Alt ' + sight.alt.toFixed(1) + '\u00B0 | ' + fmtUTC(now), 'ok');
+}
+
+function findStarByName(name) {
+  const now = new Date();
+  // Check navigational stars
+  const s = STARS.find(st => st.n === name);
+  if (s) return precessStar(s, now);
+  // Sun, Moon, planets
+  if (name === 'Sun') { const p = solarPosition(now); return { sha: p.sha, dec: p.dec, n: 'Sun' }; }
+  if (name === 'Moon') { const p = moonPosition(now); return { sha: p.sha, dec: p.dec, n: 'Moon' }; }
+  if (['Venus','Mars','Jupiter','Saturn'].includes(name)) {
+    const p = planetPosition(name, now);
+    return { sha: p.sha, dec: p.dec, n: name };
+  }
+  return null;
+}
+
+// ── SIGHT LOG ──
+function updateSightLog() {
+  const el = document.getElementById('sightLog');
+  const count = document.getElementById('sightCount');
+  count.textContent = app.sights.length;
+
+  let html = '';
+  for (const s of app.sights) {
+    html += '<div class="sight-entry">' +
+      '<span class="name">' + s.starName + '</span>' +
+      '<span class="alt">' + s.ho.toFixed(1) + '\u00B0 alt ' + s.az.toFixed(1) + '\u00B0 az</span>' +
+      '<span class="time">' + fmtUTC(s.time) + '</span>' +
+      '</div>';
+  }
+  el.innerHTML = html;
+}
+
+// ── COMPUTE FIX ──
+function computeFix() {
+  if (app.sights.length < 2) {
+    setStatus('Need at least 2 sights for a fix', 'warn');
+    return;
+  }
+
+  // Filter sights with identified stars
+  const identified = app.sights.filter(s => s.star);
+  if (identified.length < 2) {
+    setStatus('Need at least 2 identified stars. Use auto-ID mode with an assumed position, or capture 3+ stars for plate solving.', 'warn');
+    return;
+  }
+
+  const fix = directFix(identified);
+  if (!fix) {
+    setStatus('Fix computation failed — sights may be collinear', 'err');
+    return;
+  }
+
+  app.fixResult = fix;
+  app.assumedPos = { lat: fix.lat, lon: fix.lon };
+  app.skyBodies = computeSky(fix.lat, fix.lon, new Date());
+
+  // Display result
+  const latDir = fix.lat >= 0 ? 'N' : 'S';
+  const lonDir = fix.lon >= 0 ? 'E' : 'W';
+  document.getElementById('fixCoords').textContent =
+    Math.abs(fix.lat).toFixed(3) + '\u00B0 ' + latDir + '  ' +
+    Math.abs(fix.lon).toFixed(3) + '\u00B0 ' + lonDir;
+
+  let detail = '';
+  if (fix.residuals) {
+    const rms = Math.sqrt(fix.residuals.reduce((s, r) => s + r.resid * r.resid, 0) / fix.residuals.length);
+    detail = 'RMS residual: ' + rms.toFixed(1) + ' nm | ' + identified.length + ' sights';
+  }
+  document.getElementById('fixDetail').textContent = detail;
+
+  // GPS comparison
+  const gpsEl = document.getElementById('fixGps');
+  if (app.gpsPos) {
+    const gLatDir = app.gpsPos.lat >= 0 ? 'N' : 'S';
+    const gLonDir = app.gpsPos.lon >= 0 ? 'E' : 'W';
+    const errNm = angDist(fix.lat, fix.lon, app.gpsPos.lat, app.gpsPos.lon) * 60;
+    gpsEl.textContent = 'GPS: ' +
+      Math.abs(app.gpsPos.lat).toFixed(3) + '\u00B0 ' + gLatDir + '  ' +
+      Math.abs(app.gpsPos.lon).toFixed(3) + '\u00B0 ' + gLonDir +
+      '  |  error: ' + errNm.toFixed(1) + ' nm';
+  } else {
+    gpsEl.textContent = 'GPS: not available';
+  }
+
+  document.getElementById('fixOverlay').classList.add('visible');
+}
+
+function dismissFix() {
+  document.getElementById('fixOverlay').classList.remove('visible');
+}
+
+function continueSighting() {
+  dismissFix();
+  setStatus('Position updated. Star overlay now active.', 'ok');
+}
+
+// ── SOLVE MODE ──
+function toggleSolveMode() {
+  app.solveMode = app.solveMode === 'auto' ? 'plate' : 'auto';
+  document.getElementById('solveModeBtn').textContent =
+    'MODE: ' + (app.solveMode === 'auto' ? 'AUTO-ID' : 'PLATE SOLVE');
+}
+
+// ── CLEAR ──
+function clearSights() {
+  app.sights = [];
+  app.fixResult = null;
+  updateSightLog();
+  document.getElementById('fixBtn').disabled = true;
+  dismissFix();
+  setStatus('Sights cleared', 'warn');
+}
+
+// ── STATUS (auto-hiding toast) ──
+function setStatus(msg, type) {
+  const el = document.getElementById('statusToast');
+  el.className = 'status-toast visible ' + (type === 'ok' ? 'st-ok' : type === 'err' ? 'st-err' : type === 'warn' ? 'st-warn' : 'st-info');
+  el.textContent = msg;
+  clearTimeout(app.statusTimer);
+  app.statusTimer = setTimeout(function() { el.classList.remove('visible'); }, 3000);
+}
+
+// ── SIGHT LOG POPUP ──
+// ── COMPASS RECALIBRATE ──
+function recalibrate() {
+  app.lastRawAz = undefined;
+  app.azTrim = 0;
+  setStatus('Compass reset. AZ trim cleared.', 'ok');
+}
+
+// ── AZIMUTH TRIM ──
+function adjustAzTrim(dir) {
+  app.azTrim = (app.azTrim || 0) + dir;
+  setStatus('AZ trim: ' + (app.azTrim > 0 ? '+' : '') + app.azTrim + '\u00B0', 'info');
+}
+
+// ── TAP TO CYCLE CANDIDATES ──
+function cycleCandidate() {
+  if (!app.candidates || app.candidates.length < 2) return;
+  // Find current selection index
+  var curIdx = 0;
+  if (app.selectedName) {
+    for (var i = 0; i < app.candidates.length; i++) {
+      if (app.candidates[i].name === app.selectedName) { curIdx = i; break; }
+    }
+  }
+  var nextIdx = (curIdx + 1) % app.candidates.length;
+  app.selectedName = app.candidates[nextIdx].name;
+  setStatus(app.selectedName + ' (' + app.candidates[nextIdx].sep.toFixed(1) + '\u00B0 away)', 'info');
+}
+
+function toggleSightLog() {
+  document.getElementById('sightLogPopup').classList.toggle('visible');
+}
+
+// ── POSITION EDIT ──
+function showPosEdit() {
+  const p = app.assumedPos || { lat: 52.37, lon: 4.90 };
+  document.getElementById('posLat').value = p.lat.toFixed(2);
+  document.getElementById('posLon').value = p.lon.toFixed(2);
+  document.getElementById('posEditPopup').classList.add('visible');
+}
+function applyPosEdit() {
+  const lat = parseFloat(document.getElementById('posLat').value);
+  const lon = parseFloat(document.getElementById('posLon').value);
+  if (isNaN(lat) || isNaN(lon)) { setStatus('Invalid coordinates', 'err'); return; }
+  app.assumedPos = { lat: lat, lon: lon };
+  app.skyBodies = computeSky(lat, lon, new Date());
+  app.lastSkyRefresh = Date.now();
+  document.getElementById('posEditPopup').classList.remove('visible');
+  setStatus('Position: ' + lat.toFixed(1) + '\u00B0 ' + lon.toFixed(1) + '\u00B0', 'ok');
+}
+
+// ── UTIL ──
+function fmtUTC(d) {
+  return String(d.getUTCHours()).padStart(2, '0') + ':' +
+    String(d.getUTCMinutes()).padStart(2, '0') + ':' +
+    String(d.getUTCSeconds()).padStart(2, '0');
+}
+
+// ── PWA (disabled during development) ──
+// if ('serviceWorker' in navigator) {
+//   navigator.serviceWorker.register('sw.js').catch(() => {});
+// }
+// Unregister any existing SW so refreshes pull fresh files
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(regs) {
+    regs.forEach(function(r) { r.unregister(); });
+  });
+}
+</script>
+</body>
+</html>
