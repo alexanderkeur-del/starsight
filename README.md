@@ -2,7 +2,7 @@
 
 AR celestial navigation PWA. Point your phone at the sky to identify stars, capture sextant sights, and compute your position fix — no physical sextant required.
 
-Companion app to [Celestial Navigator](https://github.com/alexanderkeur-del/celestial-navigator).
+**[Launch Starsight](https://alexanderkeur-del.github.io/starsight/)** | Companion app to [Celestial Navigator](https://github.com/alexanderkeur-del/celestial-navigator)
 
 <p float="left">
   <img src="1.jpeg" width="300" alt="AR star overlay with Schedar, Mirfak, and Polaris identified">
